@@ -37,5 +37,35 @@ namespace {
 { \
     auto seg = early::early_base / 0x10; \
     auto offset = ADDRESS - early::early_base; \
-    asm volatile("mov fs")
+    asm volatile("mov fs, %[seg]; mov eax, %[offset]; mov [fs:0x0 + eax], %[value]; xor eax, eax; mov fs, eax;" \
+        : /* nothing */ \
+        : [seg] "r" (seg), [offset] "r" (offset), [value] "r" (VALUE) \
+        : "eax"); \   
 }
+
+#define early_read_32(ADDRESS, VALUE) \
+{\
+    uint32_t temp_value; \
+    auto seg = early::early_base / 0x10; \
+    auto offset = ADDRESS - early::early_base; \
+    asm volatile("mov fs, %[seg]; mov eax, %[offset]; mov %[value], [fs:0x0 + eax]; xor eax, eax; mov fs, eax;" \
+        : [value] "=r" (temp_value) \
+        : [seg] "r" (seg), [offset] "r" (offset) \
+        : "eax"); \
+    VALUE = temp_value; \
+}
+
+/* Early Logging */
+#define early_log(STRING)
+  {                                                                            \
+    uint32_t c;                                                                \
+    early_read_32(early::early_logs_count_address, c);                                \
+    early_write_32(early::early_logs_address + c * 4, STRING);                        \
+    early_write_32(early::early_logs_count_address, c + 1);                           \
+  }
+
+/* VESA */
+
+constexpr const uint16_t DEFAULT_WIDTH = 1280;
+constexpr const uint16_t DEFAULT_HEIGHT = 1024;
+constexpr const uint16_t DEFAULT_BPP = 32
